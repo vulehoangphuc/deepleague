@@ -253,7 +253,7 @@ def load_yolo():
   parser.add_argument('--name', default='exp', help='save results to project/name')
   parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
   # opt = parser.parse_args()
-  opt = parser.parse_args(["--weights=./yolov5/runs/train/best.pt","--img=320", "--conf=0.5","--save-txt","--nosave","--exist-ok"])
+  opt = parser.parse_args(["--weights=./yolov5/runs/train/best.pt","--img=320", "--conf=0.5","--save-txt","--exist-ok"])
   check_requirements(exclude=('pycocotools', 'thop'))
   print(opt)
   check_requirements(exclude=('pycocotools', 'thop'))
@@ -340,6 +340,7 @@ def detect(opt,model,stride,save_img=False):
                   if save_txt:  # Write to file
                       xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                       line = (cls, int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3]), conf) if opt.save_conf else (cls, int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3]))  # label format
+                      # print(line)
                       with open(txt_path + '.txt', 'a') as f:
                           f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
@@ -433,7 +434,7 @@ def sepia(videoFile):
   fps=20
   # cv2.VideoWriter_fourcc(*'MP4V')
   writer = cv2.VideoWriter('output.mp4',cv2.VideoWriter_fourcc(*'mp4v'), 20, size)
-  # writer = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc(*'XVID'), 15, size)
+  # writer = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc(*'XVID'), 20, size)
   while(cap.isOpened()):
     frameId = cap.get(1) #current frame number
     ret, frame = cap.read()
@@ -483,45 +484,49 @@ def sepia(videoFile):
         draw.text((bbox[0][0],bbox[0][1]),label, font = font,fill=(0,0,255,255))
         imgtest = np.array(imgtest)
       #visualize output frame: YOLO
-      data=open("./runs/detect/exp/labels/temp.txt",'r')
-      boxes=[]
-      for i in data:
-        x=i.rstrip().split(' ')[1:5]
-        boxes.append([int(x[0])+1625, int(x[1])+785, int(x[2])+1625, int(x[3])+785])
-      res = np.zeros(len(boxes),dtype=int)
-      color=0
-      final={}
-      for i in range (len(boxes)-1):
-        if(res[i]==0):
-          color+=1
-          res[i]=color
-          final[str(res[i])]=[boxes[i]]
-        for j in range (i+1,len(boxes)):
-          iou=get_iou(boxes[i],boxes[j])
-          if (iou>=0.1 and res[i]!=res[j]):
-            res[j]=res[i]
-            final[str(res[i])].append(boxes[j])
-      if (str(res[-1]) in final):
-        final[str(res[-1])].append(boxes[-1])
-      else:
-        final[str(res[-1])]=[boxes[-1]]
-      for k,v in final.items():
-        if(len(v)>1):
-          pts=[]
-          v=np.array(v)
-          # c1=(int(np.mean(v[:,0])),int(np.mean(v[:,1])))
-          # c2=(int(np.mean(v[:,2])),int(np.mean(v[:,3])))
-          x_cen=int((int(np.mean(v[:,0]))+int(np.mean(v[:,2])))/2)
-          y_cen=int((int(np.mean(v[:,1]))+int(np.mean(v[:,3])))/2)
-          # cv2.rectangle(imgtest, c1, c2, (0,0,255), thickness=2, lineType=cv2.LINE_AA)
-          cv2.putText(imgtest, '!!!', (x_cen,y_cen), cv2.FONT_HERSHEY_SIMPLEX,1, (0,0,255), 2, cv2.LINE_AA)
-      for x in boxes:
-        c1, c2 = (x[0], x[1]), (x[2], x[3])
-        cv2.rectangle(imgtest, c1, c2, (0,255,255), thickness=1, lineType=cv2.LINE_AA)
+      if os.path.exists("./runs/detect/exp/labels/temp.txt"):
+        data=open("./runs/detect/exp/labels/temp.txt",'r')
+
+        boxes=[]
+        for i in data:
+          x=i.rstrip().split(' ')[1:5]
+          boxes.append([int(x[0])+1625, int(x[1])+785, int(x[2])+1625, int(x[3])+785])
+        res = np.zeros(len(boxes),dtype=int)
+        color=0
+        final={}
+        for i in range (len(boxes)-1):
+          if(res[i]==0):
+            color+=1
+            res[i]=color
+            final[str(res[i])]=[boxes[i]]
+          for j in range (i+1,len(boxes)):
+            iou=get_iou(boxes[i],boxes[j])
+            if (iou>=0.1 and res[i]!=res[j]):
+              res[j]=res[i]
+              final[str(res[i])].append(boxes[j])
+        if (str(res[-1]) in final):
+          final[str(res[-1])].append(boxes[-1])
+        else:
+          final[str(res[-1])]=[boxes[-1]]
+        for k,v in final.items():
+          if(len(v)>1):
+            pts=[]
+            v=np.array(v)
+            # c1=(int(np.mean(v[:,0])),int(np.mean(v[:,1])))
+            # c2=(int(np.mean(v[:,2])),int(np.mean(v[:,3])))
+            x_cen=int((int(np.mean(v[:,0]))+int(np.mean(v[:,2])))/2)
+            y_cen=int((int(np.mean(v[:,1]))+int(np.mean(v[:,3])))/2)
+            # cv2.rectangle(imgtest, c1, c2, (0,0,255), thickness=2, lineType=cv2.LINE_AA)
+            cv2.putText(imgtest, '!!!', (x_cen,y_cen), cv2.FONT_HERSHEY_SIMPLEX,1, (0,0,255), 2, cv2.LINE_AA)
+        for x in boxes:
+          c1, c2 = (x[0], x[1]), (x[2], x[3])
+          cv2.rectangle(imgtest, c1, c2, (0,255,255), thickness=1, lineType=cv2.LINE_AA)
       writer.write(imgtest)
       fps-=1
   if os.path.exists("./temp.jpg"):
     os.remove("./temp.jpg")
+  if os.path.exists("./runs"):
+    shutil.rmtree("./runs")
     
 
   cap.release()
@@ -529,7 +534,7 @@ def sepia(videoFile):
   print("Done!")
   return "./output.mp4"
 
-iface = gr.Interface(fn=sepia,inputs=gr.inputs.Video(),outputs="video",interpretation="default")
+iface = gr.Interface(fn=sepia,inputs=gr.inputs.Video(label="Input Video"),outputs=gr.outputs.Video(label="Output Video"),interpretation="default")
 # iface = gr.Interface(fn=sepia,inputs=gr.inputs.Image(),outputs="text")
 iface.launch(debug=False,share=True)
 input("Running....")
