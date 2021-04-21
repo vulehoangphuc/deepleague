@@ -529,7 +529,7 @@ def sepia(videoFile):
   print("Done!")
   return "./output.mp4"
 
-iface = gr.Interface(fn=sepia,inputs=gr.inputs.Video(),outputs="video",interpretation="default",examples=[['./LoLstream_test3.mp4']])
+iface = gr.Interface(fn=sepia,inputs=gr.inputs.Video(),outputs="video",interpretation="default")
 # iface = gr.Interface(fn=sepia,inputs=gr.inputs.Image(),outputs="text")
 iface.launch(debug=False,share=True)
 input("Running....")
