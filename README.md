@@ -1,11 +1,11 @@
 # DeepLeague
 ![Alt text](demo.gif)
 ## Requirements:
-  ./yolov5/requirements.txt
-  scikit-image==0.17.2
-  vietocr==0.3.5
-  imgaug==0.4.0
-  gradio
+ - "./yolov5/requirements.txt"
+ - scikit-image==0.17.2
+ - vietocr==0.3.5
+ - imgaug==0.4.0
+ - gradio
 ## Pretrained models:
 - Download pretrained model của CRAFT tại:
   https://drive.google.com/file/d/1ZqFMCTi1qdGgPSwVblXr4nQQRRNaXtnY/view?usp=sharing
