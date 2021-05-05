@@ -409,6 +409,63 @@ def get_iou(pred_box, gt_box):
   iou = inters / uni
 
   return iou
+#Visualize____________________
+def visualize_pred(imgtest,image_name):
+  if os.path.exists("./Results/data.json"):
+    data=json.load(open('./Results/data.json'))
+    for k,v in data[image_name].items():
+      bbox= v['box']
+      bbox = np.array([[int(float(i)) for i in coord] for coord in bbox])
+      # print(k)
+      try:
+        label= v['trans']
+      except:
+        label=' '
+      bbox_= bbox.reshape((-1,1,2))
+      cv2.polylines(imgtest,[bbox_],True,(0,0,255))
+      imgtest=Image.fromarray(imgtest)
+      draw = ImageDraw.Draw(imgtest)
+      draw.text((bbox[0][0],bbox[0][1]),label, font = font,fill=(0,0,255,255))
+      imgtest = np.array(imgtest)
+  #visualize output frame: YOLO
+  if os.path.exists("./runs/detect/exp/labels/temp.txt"):
+    data=open("./runs/detect/exp/labels/temp.txt",'r')
+
+    boxes=[]
+    for i in data:
+      x=i.rstrip().split(' ')[1:5]
+      boxes.append([int(x[0])+1625, int(x[1])+785, int(x[2])+1625, int(x[3])+785])
+    res = np.zeros(len(boxes),dtype=int)
+    color=0
+    final={}
+    for i in range (len(boxes)-1):
+      if(res[i]==0):
+        color+=1
+        res[i]=color
+        final[str(res[i])]=[boxes[i]]
+      for j in range (i+1,len(boxes)):
+        iou=get_iou(boxes[i],boxes[j])
+        if (iou>=0.1 and res[i]!=res[j]):
+          res[j]=res[i]
+          final[str(res[i])].append(boxes[j])
+    if (str(res[-1]) in final):
+      final[str(res[-1])].append(boxes[-1])
+    else:
+      final[str(res[-1])]=[boxes[-1]]
+    for k,v in final.items():
+      if(len(v)>1):
+        pts=[]
+        v=np.array(v)
+        # c1=(int(np.mean(v[:,0])),int(np.mean(v[:,1])))
+        # c2=(int(np.mean(v[:,2])),int(np.mean(v[:,3])))
+        x_cen=int((int(np.mean(v[:,0]))+int(np.mean(v[:,2])))/2)
+        y_cen=int((int(np.mean(v[:,1]))+int(np.mean(v[:,3])))/2)
+        # cv2.rectangle(imgtest, c1, c2, (0,0,255), thickness=2, lineType=cv2.LINE_AA)
+        cv2.putText(imgtest, '!!!', (x_cen,y_cen), cv2.FONT_HERSHEY_SIMPLEX,1, (0,0,255), 2, cv2.LINE_AA)
+    for x in boxes:
+      c1, c2 = (x[0], x[1]), (x[2], x[3])
+      cv2.rectangle(imgtest, c1, c2, (0,255,255), thickness=1, lineType=cv2.LINE_AA)
+  return imgtest
 #MAIN_________________________________
 
 craft_net,craft_refine_net,craft_args=load_detection_model()
@@ -416,7 +473,13 @@ recognizer=load_recognition_model()
 opt,model,stride=load_yolo()
 fontpath = "./arial.ttf" # <== download font
 font = ImageFont.truetype(fontpath, 20)
-def sepia(videoFile):
+def sepia(Infer_from_Video,InputVideo,Infer_from_Image,InputImage):
+  videoFile=InputVideo
+  ImageFile=InputImage
+  outputImage=InputImage
+  if os.path.exists("./output.mp4"):
+    os.remove("./output.mp4")
+  
   # videoFile=input("Input video_path (type 'ESC' to exit!) :")
 
   #get 1 frame per second
@@ -424,117 +487,89 @@ def sepia(videoFile):
   # imagesFolder = "./frames"
   # if not os.path.isdir(imagesFolder):
   #   os.mkdir(imagesFolder)
+  if (Infer_from_Video == False):
+    shutil.copy(InputVideo,"./output.mp4")
+    outputVideo="./output.mp4"
+  else:
+    cap = cv2.VideoCapture(videoFile)
+    frameRate = cap.get(5) #frame rate
+    width  = int(cap.get(3))  # float `width`
+    height = int(cap.get(4))
+    size=(width, height)
+    image_name="0"
+    fps=20
+    # cv2.VideoWriter_fourcc(*'MP4V')
+    writer = cv2.VideoWriter('output.mp4',cv2.VideoWriter_fourcc(*'mp4v'), 20, size)
+    # writer = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc(*'XVID'), 20, size)
+    while(cap.isOpened()):
+      frameId = cap.get(1) #current frame number
+      ret, frame = cap.read()
+      if (ret != True):
+        break
+      
+      if (frameId % math.floor(frameRate) == 0):
+        # imgtest = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        imgtest=frame
+        # imgtest=Image.fromarray(frame)
+        # imgtest = imgtest[:,:,::-1]
+        # imgtest.save("./temp1.jpg")
+        image_name=str(int(frameId))
+        print('frame id: ',image_name)
+        # if not os.path.isdir('./temp'):
+        #   os.mkdir('./temp')
+        # cv2.imwrite("./temp/"+image_name+".jpg", imgtest)
 
-  cap = cv2.VideoCapture(videoFile)
-  frameRate = cap.get(5) #frame rate
-  width  = int(cap.get(3))  # float `width`
-  height = int(cap.get(4))
-  size=(width, height)
-  image_name="0"
-  fps=20
-  # cv2.VideoWriter_fourcc(*'MP4V')
-  writer = cv2.VideoWriter('output.mp4',cv2.VideoWriter_fourcc(*'mp4v'), 20, size)
-  # writer = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc(*'XVID'), 20, size)
-  while(cap.isOpened()):
-    frameId = cap.get(1) #current frame number
-    ret, frame = cap.read()
-    if (ret != True):
-      break
-    
-    if (frameId % math.floor(frameRate) == 0):
-      # imgtest = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-      imgtest=frame
-      # imgtest=Image.fromarray(frame)
-      # imgtest = imgtest[:,:,::-1]
-      # imgtest.save("./temp1.jpg")
-      image_name=str(int(frameId))
-      print('frame id: ',image_name)
-      # if not os.path.isdir('./temp'):
-      #   os.mkdir('./temp')
-      # cv2.imwrite("./temp/"+image_name+".jpg", imgtest)
+        infer_detection(imgtest,image_name,craft_net,craft_refine_net,craft_args)
+        crop_OCR(recognizer, imgtest,image_name)
 
-      infer_detection(imgtest,image_name,craft_net,craft_refine_net,craft_args)
-      crop_OCR(recognizer, imgtest,image_name)
+        # minimap=imgtest.crop((1625, 785, 1920, 1080))
+        minimap = imgtest[785:1080, 1625:1920]
+        cv2.imwrite("./temp.jpg", minimap)
+        # minimap.save("./temp.jpg")
+        opt.source="./temp.jpg"
+        detect(opt,model,stride,save_img=False)
+        fps=20
+      #visualize output frame: OCR
+      if (fps>0):
+        imgtest=visualize_pred(frame,image_name)
+        writer.write(imgtest)
+        fps-=1
+    if os.path.exists("./temp.jpg"):
+      os.remove("./temp.jpg")
+    if os.path.exists("./runs"):
+      shutil.rmtree("./runs")
+    cap.release()
+    writer.release()
+    outputVideo="./output.mp4"
 
-      # minimap=imgtest.crop((1625, 785, 1920, 1080))
-      minimap = imgtest[785:1080, 1625:1920]
-      cv2.imwrite("./temp.jpg", minimap)
-      # minimap.save("./temp.jpg")
-      opt.source="./temp.jpg"
-      if os.path.exists("./runs/detect/exp/labels/temp.txt"):
-        os.remove("./runs/detect/exp/labels/temp.txt")
-      detect(opt,model,stride,save_img=False)
-      fps=20
-    #visualize output frame: OCR
-    if (fps>0):
-      imgtest=frame
-      data=json.load(open('./Results/data.json'))
-      for k,v in data[image_name].items():
-        bbox= v['box']
-        bbox = np.array([[int(float(i)) for i in coord] for coord in bbox])
-        # print(k)
-        try:
-          label= v['trans']
-        except:
-          label=' '
-        bbox_= bbox.reshape((-1,1,2))
-        cv2.polylines(imgtest,[bbox_],True,(0,0,255))
-        imgtest=Image.fromarray(imgtest)
-        draw = ImageDraw.Draw(imgtest)
-        draw.text((bbox[0][0],bbox[0][1]),label, font = font,fill=(0,0,255,255))
-        imgtest = np.array(imgtest)
-      #visualize output frame: YOLO
-      if os.path.exists("./runs/detect/exp/labels/temp.txt"):
-        data=open("./runs/detect/exp/labels/temp.txt",'r')
+  if (Infer_from_Image == True):
+    imgtest=ImageFile
+    # imgtest = cv2.cvtColor(imgtest, cv2.COLOR_BGR2RGB)
+    image_name="img_infer"
+    infer_detection(imgtest,image_name,craft_net,craft_refine_net,craft_args)
+    crop_OCR(recognizer, imgtest,image_name)
 
-        boxes=[]
-        for i in data:
-          x=i.rstrip().split(' ')[1:5]
-          boxes.append([int(x[0])+1625, int(x[1])+785, int(x[2])+1625, int(x[3])+785])
-        res = np.zeros(len(boxes),dtype=int)
-        color=0
-        final={}
-        for i in range (len(boxes)-1):
-          if(res[i]==0):
-            color+=1
-            res[i]=color
-            final[str(res[i])]=[boxes[i]]
-          for j in range (i+1,len(boxes)):
-            iou=get_iou(boxes[i],boxes[j])
-            if (iou>=0.1 and res[i]!=res[j]):
-              res[j]=res[i]
-              final[str(res[i])].append(boxes[j])
-        if (str(res[-1]) in final):
-          final[str(res[-1])].append(boxes[-1])
-        else:
-          final[str(res[-1])]=[boxes[-1]]
-        for k,v in final.items():
-          if(len(v)>1):
-            pts=[]
-            v=np.array(v)
-            # c1=(int(np.mean(v[:,0])),int(np.mean(v[:,1])))
-            # c2=(int(np.mean(v[:,2])),int(np.mean(v[:,3])))
-            x_cen=int((int(np.mean(v[:,0]))+int(np.mean(v[:,2])))/2)
-            y_cen=int((int(np.mean(v[:,1]))+int(np.mean(v[:,3])))/2)
-            # cv2.rectangle(imgtest, c1, c2, (0,0,255), thickness=2, lineType=cv2.LINE_AA)
-            cv2.putText(imgtest, '!!!', (x_cen,y_cen), cv2.FONT_HERSHEY_SIMPLEX,1, (0,0,255), 2, cv2.LINE_AA)
-        for x in boxes:
-          c1, c2 = (x[0], x[1]), (x[2], x[3])
-          cv2.rectangle(imgtest, c1, c2, (0,255,255), thickness=1, lineType=cv2.LINE_AA)
-      writer.write(imgtest)
-      fps-=1
-  if os.path.exists("./temp.jpg"):
-    os.remove("./temp.jpg")
-  if os.path.exists("./runs"):
-    shutil.rmtree("./runs")
-    
-
-  cap.release()
-  writer.release()
+    # minimap=imgtest.crop((1625, 785, 1920, 1080))
+    minimap = imgtest[785:1080, 1625:1920]
+    cv2.imwrite("./temp.jpg", minimap)
+    # minimap.save("./temp.jpg")
+    opt.source="./temp.jpg"
+    detect(opt,model,stride,save_img=False)
+    imgtest=visualize_pred(imgtest,image_name)
+    cv2.imwrite("./img_pred.jpg", imgtest)
+    outputImage=imgtest
+    if os.path.exists("./temp.jpg"):
+      os.remove("./temp.jpg")
+    if os.path.exists("./runs"):
+      shutil.rmtree("./runs")
   print("Done!")
-  return "./output.mp4"
-
-iface = gr.Interface(fn=sepia,inputs=gr.inputs.Video(label="Input Video"),outputs=gr.outputs.Video(label="Output Video"),interpretation="default")
+  print("OUTPUT:------------",outputVideo,outputImage.shape)
+  return [outputVideo, outputImage]
+inputt=[gr.inputs.Checkbox(label="Infer_from_Video"),gr.inputs.Video(label="InputVideo"),gr.inputs.Checkbox(label="Infer_from_Image"),gr.inputs.Image(label="InputImage")]
+samples=[["LoLstream_test6.mp4","img.png"]]
+des="*Hướng dẫn:\n \t* tick chọn checkbox Infer_from_Video/Image tương ứng để chạy Inference.\n \t* Lưu ý: InputVideo và InputImage phải được điền vào ngay cả khi không tick chọn checkbox \n \t * InputVideo và InputImage phải có độ phân giải 1920x1080"
+iface = gr.Interface(fn=sepia,inputs=inputt,outputs=[gr.outputs.Video(label="OutputVideo"),gr.outputs.Image(label="OutputImage")],verbose=True,interpretation="default",description=des)
+# iface = gr.Interface(fn=sepia,inputs=gr.inputs.Video(label="Input Video"),outputs=gr.outputs.Video(label="Output Video"),examples=samples,interpretation="default")
 # iface = gr.Interface(fn=sepia,inputs=gr.inputs.Image(),outputs="text")
-iface.launch(debug=False,share=True)
-input("Running....")
+iface.launch(debug=True,share=True)
+# input("Running....")
