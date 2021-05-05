@@ -18,8 +18,7 @@
 + Inference với commandline:
   - Chạy: python inference.py
   - Nhập vào video_path cần xử lý.
- + Inference với UI: (yêu cầu Gradio)
-  - Chạy: python inferenceUI.py
+ + Inference với UI: (yêu cầu Gradio) Chạy: python inferenceUI.py
 ## Note:
 - Hiện chương trình chỉ có thể xử lý video đầu vào với độ phân giải 1920x1080!
 # References:
